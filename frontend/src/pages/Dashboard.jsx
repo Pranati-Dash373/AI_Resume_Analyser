@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 export default function Dashboard() {
   const { resumeId } = useParams();
+  const navigate = useNavigate(); 
   const [data, setData] = useState(null);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +134,12 @@ export default function Dashboard() {
                   ))}
                 </div>
                 <p className="text-gray-500 text-sm italic">{job.recommendation}</p>
+                <button
+  onClick={() => navigate(`/optimize/${resumeId}/${job.job_id}`)}
+  className="mt-3 w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+>
+  ✨ Optimize My Resume for This Job
+</button>
               </div>
             ))}
           </div>
