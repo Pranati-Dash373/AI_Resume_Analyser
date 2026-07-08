@@ -4,7 +4,9 @@ sqlalchemy
 python-jose
 passlib
 bcrypt
+pymupdf
+groq
 python-multipart
 python-dotenv
-pymupdf
-anthropic
+psycopg2-binary
+google-genai
