@@ -2,7 +2,7 @@ from groq import Groq
 import json
 import os
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Groq(api_key=os.getenv("GROQ_API_KEY") , timeout = 60.0 )
 
 def analyse_resume(resume_text: str) -> dict:
     prompt = f"""You are an expert resume reviewer.
