@@ -1,25 +1,51 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api";
 
 export default function Dashboard() {
   const { resumeId } = useParams();
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [matches, setMatches] = useState([]);
+  const [queryUsed, setQueryUsed] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [role, setRole] = useState("");
+  const [location, setLocation] = useState("India");
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState("");
+
+  async function loadJobs({ roleOverride, refresh } = {}) {
+    setJobsLoading(true);
+    setJobsError("");
+    try {
+      const params = { location };
+      if (roleOverride) params.role = roleOverride;
+      if (refresh) params.refresh = true;
+      const res = await api.get(`/jobs/match/${resumeId}`, { params });
+      setMatches(res.data.matches || []);
+      setQueryUsed(res.data.query_used || "");
+    } catch (err) {
+      setJobsError(
+        err.response?.data?.detail ||
+        "Couldn't load live job listings. Check that RAPIDAPI_KEY is set on the backend."
+      );
+    } finally {
+      setJobsLoading(false);
+    }
+  }
 
   useEffect(() => {
     async function load() {
-      const [resumeRes, matchRes] = await Promise.all([
-        axios.get(`http://localhost:8000/resume/${resumeId}`),
-        axios.get(`http://localhost:8000/jobs/match/${resumeId}`)
+      const [resumeRes] = await Promise.all([
+        api.get(`/resume/${resumeId}`),
+        loadJobs()
       ]);
       setData(resumeRes.data);
-      setMatches(matchRes.data.matches);
       setLoading(false);
     }
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId]);
 
   if (loading) return (
@@ -97,55 +123,42 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Job Matches */}
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">🎯 Top Job Matches</h2>
-        {matches.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center text-gray-400">
-            No jobs in database yet. Run seed_jobs.py to add jobs.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {matches.map((job, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-semibold text-gray-800">{job.title}</p>
-                    <p className="text-gray-500 text-sm">{job.company} · {job.location}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-2xl font-bold ${job.match_score >= 75 ? "text-green-600" : job.match_score >= 50 ? "text-amber-500" : "text-red-400"}`}>
-                      {job.match_score}%
-                    </p>
-                    <p className="text-gray-400 text-xs">match</p>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
-                  <div
-                    className={`h-2 rounded-full ${job.match_score >= 75 ? "bg-green-500" : job.match_score >= 50 ? "bg-amber-400" : "bg-red-400"}`}
-                    style={{ width: `${job.match_score}%` }}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {job.matched_skills?.map(s => (
-                    <span key={s} className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full">{s}</span>
-                  ))}
-                  {job.missing_skills?.map(s => (
-                    <span key={s} className="bg-gray-100 text-gray-400 text-xs px-2 py-0.5 rounded-full line-through">{s}</span>
-                  ))}
-                </div>
-                <p className="text-gray-500 text-sm italic">{job.recommendation}</p>
-                <button
-  onClick={() => navigate(`/optimize/${resumeId}/${job.job_id}`)}
-  className="mt-3 w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
->
-  ✨ Optimize My Resume for This Job
-</button>
-              </div>
-            ))}
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}
+        {/* Job Search Controls */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
+          <h2 className="text-xl font-semibold text-gray-800 mb-3">🎯 Live Job Matches</h2>
+          <form
+            className="flex flex-wrap gap-3 items-end"
+            onSubmit={(e) => {
+              e.preventDefault();
+              loadJobs({ roleOverride: role, refresh: true });
+            }}
+          >
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-xs text-gray-500 mb-1">Role (optional override)</label>
+              <input
+                type="text"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                placeholder={queryUsed || "e.g. Backend Developer"}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+              />
+            </div>
+            <div className="w-40">
+              <label className="block text-xs text-gray-500 mb-1">Location</label>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={jobsLoading}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {jobsLoading ? "Searching..." : "🔍 Search Jobs"}
+            </button>
+          </form>
+          {queryUsed && !jobsLoading && (
+            <p className="text

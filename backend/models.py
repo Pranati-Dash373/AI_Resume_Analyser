@@ -22,11 +22,10 @@ class Resume(Base):
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
     owner      = relationship("User", back_populates="resumes")
 
-class Job(Base):
-    __tablename__ = "jobs"
-    id          = Column(Integer, primary_key=True, index=True)
-    title       = Column(String)
-    company     = Column(String)
-    description = Column(Text)
-    skills      = Column(Text)   # comma-separated
-    location    = Column(String)
+class ExternalJob(Base):
+    """
+    A live job listing fetched from the JSearch API for a specific resume.
+    Cached per-resume so /jobs/optimize can look the listing back up
+    without re-hitting the external API (RapidAPI free tier is
+    rate-limited to 200 requests/month).
+    """

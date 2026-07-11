@@ -1,58 +1,57 @@
-from fastapi import APIRouter, Depends
+import datetime
+import traceback
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
 from database import get_db
-from models import Job, Resume
-from services.ai_service import match_resume_to_job, optimize_resume_for_job
-import json
+from models import ExternalJob, Resume
+from services.ai_service import derive_job_search_query, match_resume_to_job, optimize_resume_for_job
+from services.job_search_service import search_jobs, JobSearchError
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
+MAX_JOBS_TO_SCORE = 8
+CACHE_MINUTES = 60  # avoid re-hitting the live job API on every dashboard reload
+
+
 @router.get("/match/{resume_id}")
-def match_jobs(resume_id: int, db: Session = Depends(get_db)):
+def match_jobs(
+    resume_id: int,
+    role: str | None = Query(None, description="Override the AI-inferred job title"),
+    location: str = Query("India", description="Location to search near"),
+    refresh: bool = Query(False, description="Force a fresh live search, bypassing the cache"),
+    db: Session = Depends(get_db),
+):
     resume = db.query(Resume).filter(Resume.id == resume_id).first()
     if not resume:
-        return {"error": "Resume not found"}
-    jobs = db.query(Job).all()
-    matches = []
-    for job in jobs:
-        job_dict = {
-            "title": job.title,
-            "company": job.company,
-            "description": job.description,
-            "skills": job.skills
-        }
-        match = match_resume_to_job(resume.raw_text, job_dict)
-        matches.append({
-            "job_id": job.id,
-            "title": job.title,
-            "company": job.company,
-            "location": job.location,
-            **match
-        })
-    matches.sort(key=lambda x: x["match_score"], reverse=True)
-    return {"matches": matches}
+        raise HTTPException(404, "Resume not found")
 
+    cached = (
+        db.query(ExternalJob)
+        .filter(ExternalJob.resume_id == resume_id)
+        .order_by(ExternalJob.fetched_at.desc())
+        .all()
+    )
+    fresh_cutoff = datetime.datetime.utcnow() - datetime.timedelta(minutes=CACHE_MINUTES)
+    use_cache = (
+        not refresh
+        and not role
+        and cached
+        and cached[0].fetched_at is not None
+        and cached[0].fetched_at > fresh_cutoff
+    )
 
-@router.get("/optimize/{resume_id}/{job_id}")
-def optimize_resume(resume_id: int, job_id: int, db: Session = Depends(get_db)):
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not resume:
-        return {"error": "Resume not found"}
-    if not job:
-        return {"error": "Job not found"}
-    job_dict = {
-        "title": job.title,
-        "company": job.company,
-        "description": job.description,
-        "skills": job.skills
-    }
-    result = optimize_resume_for_job(resume.raw_text, job_dict)
-    return {
-        "job_title": job.title,
-        "company": job.company,
-        "optimized_resume": result["optimized_resume"],
-        "changes_made": result["changes_made"],
-        "keywords_added": result["keywords_added"],
-        "ats_score": result["ats_score"]
-    }
+    if use_cache:
+        job_rows = cached[:MAX_JOBS_TO_SCORE]
+        query_used = "cached results"
+    else:
+        try:
+            search_query = role or derive_job_search_query(resume.raw_text).get("role", "Software Engineer")
+            listings = search_jobs(query=search_query, location=location, num_results=MAX_JOBS_TO_SCORE)
+        except JobSearchError as e:
+            raise HTTPException(502, str(e))
+        except Exception as e:
+            tb = traceback.format_exc()
+            print(tb)
+            # last non-framework frame, so the 

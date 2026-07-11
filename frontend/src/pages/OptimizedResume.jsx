@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api";
 
 export default function OptimizedResume() {
   const { resumeId, jobId } = useParams();
@@ -11,9 +11,7 @@ export default function OptimizedResume() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await axios.get(
-          `http://localhost:8000/jobs/optimize/${resumeId}/${jobId}`
-        );
+        const res = await api.get(`/jobs/optimize/${resumeId}/${jobId}`);
         setData(res.data);
         setLoading(false);
       } catch (err) {
@@ -158,10 +156,25 @@ export default function OptimizedResume() {
         </div>
 
         {/* Job Target */}
-        <div className="print:hidden bg-indigo-50 rounded-2xl border border-indigo-100 p-4 mb-6">
+        <div className="print:hidden bg-indigo-50 rounded-2xl border border-indigo-100 p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
           <p className="text-indigo-800 font-semibold">
             🎯 Optimized for: {data.job_title} at {data.company}
+            {data.source && (
+              <span className="ml-2 text-xs font-medium bg-indigo-600 text-white px-2 py-0.5 rounded-full align-middle">
+                {data.source}
+              </span>
+            )}
           </p>
+          {data.apply_link && (
+            <a
+              href={data.apply_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium underline"
+            >
+              View Original Posting ↗
+            </a>
+          )}
         </div>
 
         {/* RESUME DOCUMENT */}
@@ -212,22 +225,4 @@ export default function OptimizedResume() {
         </div>
 
         {/* Bottom Buttons */}
-        <div className="print:hidden mt-6 flex justify-center gap-4">
-          <button
-            onClick={handleCopy}
-            className="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-300"
-          >
-            📋 Copy Resume Text
-          </button>
-          <button
-            onClick={handlePrint}
-            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-indigo-700"
-          >
-            🖨️ Download as PDF
-          </button>
-        </div>
-
-      </div>
-    </div>
-  );
-}
+     
