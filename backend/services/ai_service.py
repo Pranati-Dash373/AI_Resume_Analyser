@@ -107,4 +107,27 @@ STRICT ATS-FRIENDLY FORMATTING RULES:
   sections that have content)
 - Single column, top-to-bottom, reverse-chronological order — no tables,
   no multi-column layouts, no text boxes
-- No emojis, no special/decorative uni
+- No emojis, no special/decorative unicode characters, no icons
+- Use a plain hyphen "-" for bullet points, never "•" or other symbols
+- Use standard date format: "Mon YYYY - Mon YYYY" or "Mon YYYY - Present"
+- No headers/footers, no images, no graphics
+- First line = full name. Second line = contact info (email, phone, location)
+  on one line, comma separated
+- Return ONLY valid JSON, no markdown, no extra text
+
+Return this exact JSON:
+{{
+  "optimized_resume": "full rewritten resume text here — maximum 1 page worth of content",
+  "changes_made": ["change 1", "change 2", "change 3"],
+  "keywords_added": ["keyword1", "keyword2"],
+  "ats_score": <number 0-100>
+}}
+
+ORIGINAL RESUME:
+{resume_text}
+
+JOB TITLE: {job["title"]}
+JOB COMPANY: {job["company"]}
+JOB DESCRIPTION: {job["description"]}
+REQUIRED SKILLS: {job.get("skills", "")}"""
+    return _call_json(prompt)

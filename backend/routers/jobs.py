@@ -54,4 +54,84 @@ def match_jobs(
         except Exception as e:
             tb = traceback.format_exc()
             print(tb)
-            # last non-framework frame, so the 
+            # last non-framework frame, so the error is self-diagnosing without needing the server console
+            last_frame = [line for line in tb.strip().splitlines() if line.strip().startswith("File \"")][-1:]
+            frame_info = last_frame[0].strip() if last_frame else ""
+            raise HTTPException(
+                500,
+                f"Error preparing job search: {type(e).__name__}: {e} | {frame_info}"
+            )
+
+        # clear stale cached listings for this resume before storing fresh ones
+        db.query(ExternalJob).filter(ExternalJob.resume_id == resume_id).delete()
+        db.commit()
+
+        job_rows = []
+        for listing in listings:
+            row = ExternalJob(
+                resume_id=resume_id,
+                external_id=listing["external_id"],
+                title=listing["title"],
+                company=listing["company"],
+                location=listing["location"],
+                description=listing["description"],
+                apply_link=listing["apply_link"],
+                source=listing["source"],
+            )
+            db.add(row)
+            job_rows.append(row)
+        db.commit()
+        for row in job_rows:
+            db.refresh(row)
+        query_used = search_query
+
+    if not job_rows:
+        return {"matches": [], "query_used": query_used}
+
+    matches = []
+    for job in job_rows:
+        job_dict = {"title": job.title, "company": job.company, "description": job.description, "skills": ""}
+        try:
+            match = match_resume_to_job(resume.raw_text, job_dict)
+        except Exception:
+            traceback.print_exc()
+            continue
+        matches.append({
+            "job_id": job.id,
+            "title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "source": job.source,
+            "apply_link": job.apply_link,
+            **match,
+        })
+    matches.sort(key=lambda x: x["match_score"], reverse=True)
+    return {"matches": matches, "query_used": query_used}
+
+
+@router.get("/optimize/{resume_id}/{job_id}")
+def optimize_resume(resume_id: int, job_id: int, db: Session = Depends(get_db)):
+    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    job = db.query(ExternalJob).filter(ExternalJob.id == job_id, ExternalJob.resume_id == resume_id).first()
+    if not resume:
+        raise HTTPException(404, "Resume not found")
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    job_dict = {"title": job.title, "company": job.company, "description": job.description, "skills": ""}
+    try:
+        result = optimize_resume_for_job(resume.raw_text, job_dict)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, f"Error optimizing resume: {str(e)}")
+
+    return {
+        "job_title": job.title,
+        "company": job.company,
+        "source": job.source,
+        "apply_link": job.apply_link,
+        "optimized_resume": result["optimized_resume"],
+        "changes_made": result["changes_made"],
+        "keywords_added": result["keywords_added"],
+        "ats_score": result["ats_score"],
+    }

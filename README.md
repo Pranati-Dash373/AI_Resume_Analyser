@@ -108,4 +108,49 @@ http://localhost:5173
 
 ## 🔄 How It Works
 ```
-1. User up
+1. User uploads PDF resume
+2. PyMuPDF extracts text from PDF
+3. Text sent to Groq AI (LLaMA model) for scoring/feedback
+4. AI returns score, strengths, weaknesses, suggestions
+5. AI infers the best job title/role to search for from the resume
+   (or the user overrides it)
+6. Live listings are pulled from JSearch (LinkedIn, Naukri, Glassdoor,
+   Indeed, etc.), cached per-resume for an hour to conserve API quota
+7. AI scores how well the resume matches each live listing
+8. Results displayed on dashboard, ranked by match %, with a link to
+   view/apply on the original posting
+9. User picks a job → AI rewrites the resume for that job in an
+   ATS-friendly format, filling in missing keywords truthfully
+```
+
+## 📸 Screenshots
+
+### Upload Page
+- Clean drag and drop interface
+- Supports PDF files only
+
+### Dashboard
+- Resume score out of 100
+- Color coded progress bar
+- Missing keywords highlighted
+- Strengths and suggestions
+- Job matches ranked by compatibility
+
+## 🔮 Future Improvements
+
+- [ ] Enforce JWT auth on resume/job endpoints (currently register/login exist but aren't wired into the upload flow)
+- [ ] Cover letter generator
+- [ ] Email notifications for job matches
+- [ ] Resume builder
+- [ ] Deploy on cloud
+- [ ] Export optimized resume as a downloadable PDF/DOCX, not just print-to-PDF
+
+## 👩‍💻 Built By
+
+**Pranati Dash**  
+Computer Science Graduate  
+Passionate about AI and Full Stack Development
+
+## 📄 License
+
+MIT License — feel free to use and modify!

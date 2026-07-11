@@ -68,4 +68,45 @@ def search_jobs(query: str, location: str = "India", num_results: int = 8) -> li
         raise JobSearchError(
             f"RapidAPI returned 404 for {resp.url} — the endpoint/host may be wrong, or you're "
             "not subscribed to JSearch specifically (RapidAPI keys are account-wide but each API "
-        
+            "still needs its own subscription). Response body: "
+            f"{resp.text[:500]}"
+        )
+    if not resp.ok:
+        raise JobSearchError(f"RapidAPI request failed ({resp.status_code}): {resp.text[:500]}")
+
+    payload = resp.json()
+    data = payload.get("data", [])
+
+    # /search-v2's response shape isn't fully consistent across accounts/regions —
+    # "data" has been observed as either a plain list of jobs, or an object with
+    # the job list nested under a key like "jobs"/"results". Handle both defensively
+    # instead of assuming it's always a list (that assumption caused a crash before).
+    if isinstance(data, dict):
+        listings = data.get("jobs") or data.get("results") or data.get("data") or []
+    elif isinstance(data, list):
+        listings = data
+    else:
+        listings = []
+
+    if not isinstance(listings, list):
+        listings = []
+
+    jobs = []
+    for item in listings[:num_results]:
+        if not isinstance(item, dict):
+            continue
+        jobs.append({
+            "external_id": item.get("job_id"),
+            "title": item.get("job_title") or "Untitled role",
+            "company": item.get("employer_name") or "Unknown company",
+            "location": item.get("job_city") or item.get("job_country") or location,
+            "description": (item.get("job_description") or "").strip(),
+            "apply_link": item.get("job_apply_link"),
+            "source": item.get("job_publisher") or "Web",
+            "posted_at": item.get("job_posted_at_datetime_utc"),
+        })
+
+    if not jobs:
+        print(f"[job_search_service] No jobs parsed. Top-level payload keys: {list(payload.keys())}")
+
+    return jobs

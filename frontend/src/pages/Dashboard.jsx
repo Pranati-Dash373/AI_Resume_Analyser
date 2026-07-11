@@ -161,4 +161,86 @@ export default function Dashboard() {
             </button>
           </form>
           {queryUsed && !jobsLoading && (
-            <p className="text
+            <p className="text-gray-400 text-xs mt-2">Showing results for: "{queryUsed}"</p>
+          )}
+        </div>
+
+        {/* Job Matches */}
+        {jobsLoading ? (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center justify-center gap-3 text-indigo-600 font-medium">
+            <div className="animate-spin w-5 h-5 border-2 border-indigo-300 border-t-indigo-600 rounded-full"/>
+            Searching live listings and scoring matches...
+          </div>
+        ) : jobsError ? (
+          <div className="bg-red-50 rounded-2xl border border-red-100 p-6 text-center text-red-500 text-sm">
+            {jobsError}
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center text-gray-400">
+            No live jobs found for this search. Try a different role or location.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {matches.map((job, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-gray-800">{job.title}</p>
+                      {job.source && (
+                        <span className="text-xs font-medium bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100">
+                          {job.source}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-500 text-sm">{job.company} · {job.location}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-2xl font-bold ${job.match_score >= 75 ? "text-green-600" : job.match_score >= 50 ? "text-amber-500" : "text-red-400"}`}>
+                      {job.match_score}%
+                    </p>
+                    <p className="text-gray-400 text-xs">match</p>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
+                  <div
+                    className={`h-2 rounded-full ${job.match_score >= 75 ? "bg-green-500" : job.match_score >= 50 ? "bg-amber-400" : "bg-red-400"}`}
+                    style={{ width: `${job.match_score}%` }}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {job.matched_skills?.map(s => (
+                    <span key={s} className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full">{s}</span>
+                  ))}
+                  {job.missing_skills?.map(s => (
+                    <span key={s} className="bg-gray-100 text-gray-400 text-xs px-2 py-0.5 rounded-full line-through">{s}</span>
+                  ))}
+                </div>
+                <p className="text-gray-500 text-sm italic">{job.recommendation}</p>
+                <div className="flex gap-3 mt-3">
+                  <button
+                    onClick={() => navigate(`/optimize/${resumeId}/${job.job_id}`)}
+                    className="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  >
+                    ✨ Optimize My Resume for This Job
+                  </button>
+                  {job.apply_link && (
+                    <a
+                      href={job.apply_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center bg-gray-100 text-gray-600 px-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                    >
+                      View Posting ↗
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}

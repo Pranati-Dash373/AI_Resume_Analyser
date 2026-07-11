@@ -225,4 +225,22 @@ export default function OptimizedResume() {
         </div>
 
         {/* Bottom Buttons */}
-     
+        <div className="print:hidden mt-6 flex justify-center gap-4">
+          <button
+            onClick={handleCopy}
+            className="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-300"
+          >
+            📋 Copy Resume Text
+          </button>
+          <button
+            onClick={handlePrint}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-indigo-700"
+          >
+            🖨️ Download as PDF
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
